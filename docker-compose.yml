@@ -1,4 +1,3 @@
-```yaml
 services:
   # --- CORE AI ENGINE ---
   ollama:
@@ -334,4 +333,3 @@ volumes:
   mysql_data:
   minio_data:
   infinity_data:
-```
