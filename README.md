@@ -1,4 +1,4 @@
-# AI OS: Unified Local Development & Agentic Stack
+# AI Docker Compose Kit
 
 This repository contains a high-intelligence, multi-container Docker environment designed for local AI development, autonomous agent management, and high-fidelity Retrieval-Augmented Generation (RAG). It integrates cutting-edge inference engines, vector databases, and automation tools into a single, cohesive network.
 
