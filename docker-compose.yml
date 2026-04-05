@@ -1,0 +1,337 @@
+```yaml
+services:
+  # --- CORE AI ENGINE ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - webui_data:/app/backend/data
+    ports:
+      - "3000:8080"
+    depends_on:
+      - ollama
+
+  # --- DEVELOPMENT & ANALYSIS ---
+  jupyter:
+    image: quay.io/jupyter/pytorch-notebook:latest
+    container_name: jupyter
+    restart: always
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./obsidian_vault:/home/jovyan/work/vault
+    environment:
+      - JUPYTER_TOKEN=password
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  open-notebooklm:
+    image: lfnovo/open-notebook:v1-latest
+    container_name: open-notebooklm
+    restart: always
+    ports:
+      - "8502:8502"
+      - "5055:5055"
+    environment:
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
+    depends_on:
+      - surrealdb
+      - ollama
+
+  # --- AGENTIC MANAGEMENT SYSTEMS ---
+  dify-api:
+    image: langgenius/dify-api:latest
+    container_name: dify-api
+    restart: always
+    environment:
+      - DB_USERNAME=admin
+      - DB_PASSWORD=password
+      - DB_HOST=postgres
+      - DB_DATABASE=dify
+      - REDIS_HOST=redis
+      - VECTOR_STORE=qdrant
+      - QDRANT_HOST=qdrant
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+
+  dify-worker:
+    image: langgenius/dify-api:latest
+    container_name: dify-worker
+    restart: always
+    environment:
+      - DB_USERNAME=admin
+      - DB_PASSWORD=password
+      - DB_HOST=postgres
+      - DB_DATABASE=dify
+      - REDIS_HOST=redis
+      - VECTOR_STORE=qdrant
+      - QDRANT_HOST=qdrant
+    depends_on:
+      - dify-api
+
+  dify-web:
+    image: langgenius/dify-web:latest
+    container_name: dify-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - dify-api
+
+  flowise:
+    image: flowiseai/flowise:latest
+    container_name: flowise
+    restart: always
+    environment:
+      - DATABASE_TYPE=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_HOST=postgres
+      - DATABASE_USER=admin
+      - DATABASE_PASSWORD=password
+    ports:
+      - "3003:3000"
+    depends_on:
+      - postgres
+
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:latest
+    container_name: openhands
+    restart: always
+    ports:
+      - "3004:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./projects:/app/projects
+    environment:
+      - LLM_BASE_URL=http://ollama:11434
+
+  # --- AUTOMATION & INFRASTRUCTURE ---
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=admin
+      - DB_POSTGRESDB_PASSWORD=password
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./obsidian_vault:/home/node/vault
+    depends_on:
+      - postgres
+      - redis
+
+  mercure:
+    image: dunglas/mercure
+    container_name: mercure
+    restart: always
+    environment:
+      - SERVER_NAME=:80
+      - MERCURE_PUBLISHER_JWT_KEY=change-me-secret
+      - MERCURE_SUBSCRIBER_JWT_KEY=change-me-secret
+    ports:
+      - "8084:80"
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: always
+    ports:
+      - "3001:3000"
+      - "222:22"
+    volumes:
+      - gitea_data:/data
+    depends_on:
+      - postgres
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: always
+    ports:
+      - "8082:8080"
+
+  # --- RAG APPLICATIONS ---
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: anythingllm
+    restart: always
+    ports:
+      - "3002:3001"
+    environment:
+      - STORAGE_DIR=/app/server/storage
+      - OLLAMA_BASE_PATH=http://ollama:11434
+      - VECTOR_DB=qdrant
+      - QDRANT_ENDPOINT=http://qdrant:6333
+    volumes:
+      - anythingllm_storage:/app/server/storage
+    depends_on:
+      - ollama
+      - qdrant
+
+  ragflow:
+    image: infiniflow/ragflow:latest
+    container_name: ragflow
+    restart: always
+    ports:
+      - "8083:80"
+    environment:
+      - MYSQL_PASSWORD=password
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - mysql
+      - redis
+      - minio
+      - infinity
+
+  unstructured-api:
+    image: downloads.unstructured.io/unstructured-io/unstructured-api:latest
+    container_name: unstructured-api
+    restart: always
+    ports:
+      - "8021:8000"
+
+  # --- DATABASES & STORAGE ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    container_name: surrealdb
+    restart: always
+    command: start --user root --pass root rocksdb:/mydata/mydatabase.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - surreal_data:/mydata
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  infinity:
+    image: infiniflow/infinity:latest
+    container_name: infinity
+    restart: always
+    volumes:
+      - infinity_data:/var/lib/infinity
+
+  # --- KNOWLEDGE MANAGEMENT ---
+  obsidian-remote:
+    image: sytone/obsidian-remote:latest
+    container_name: obsidian-remote
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./obsidian_vault:/vault
+      - obsidian_config:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+
+  couchdb:
+    image: couchdb:3.3
+    container_name: couchdb
+    restart: always
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    ports:
+      - "5984:5984"
+
+volumes:
+  ollama_data:
+  webui_data:
+  n8n_data:
+  postgres_data:
+  mongo_data:
+  qdrant_data:
+  surreal_data:
+  gitea_data:
+  couchdb_data:
+  obsidian_config:
+  anythingllm_storage:
+  mysql_data:
+  minio_data:
+  infinity_data:
+```
