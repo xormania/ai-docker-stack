@@ -6,11 +6,60 @@ This repository contains a high-intelligence, multi-container Docker environment
 
 1.  **System Requirements**: Ensure you have Docker and the NVIDIA Container Toolkit installed (for GPU-accelerated inference).
 2.  **Clone & Prepare**: Clone this repository and create an `obsidian_vault` directory in the root to serve as the shared knowledge base.
-3.  **Deployment**:
+3.  **Create Environment File**:
+     ```bash
+     cp .env.example .env
+     ```
+     Review `.env` and change all default credentials before exposing ports beyond localhost.
+4.  **Deployment**:
     ```bash
     docker compose up -d
     ```
-4.  **Access**: Services are mapped to specific ports (e.g., Open WebUI at `http://localhost:3000`).
+5.  **Access**: Services are mapped to specific ports (e.g., Open WebUI at `http://localhost:3000`).
+
+### Startup Behavior
+
+The stack now uses health-gated startup for core dependencies:
+- Infrastructure services (`postgres`, `redis`, `qdrant`, `mysql`, `minio`, `couchdb`, `mongodb`) must be healthy before dependent services start.
+- `ollama-init` waits for `ollama`, pulls `OLLAMA_BOOTSTRAP_MODEL` (default `gemma4:current`) once, and exits successfully.
+- LLM clients (`open-webui`, `anythingllm`, `flowise`, `openhands`, `jupyter`) wait for `ollama-init` completion.
+
+This prevents race conditions where agent and RAG services start before their backing stores and model endpoint are ready.
+
+### Integration Matrix (Internal URLs)
+
+- `open-webui` -> `ollama` via `OLLAMA_BASE_URL`
+- `dify-api` / `dify-worker` -> `postgres`, `redis`, `qdrant`, `ollama`, `mongodb`, `couchdb`
+- `flowise` -> `postgres`, `ollama`, `qdrant`
+- `openhands` -> `ollama`, `gitea`, `mongodb` with feature-branch auto-commit controls
+- `n8n` -> `postgres`, `redis`, `ollama`, `gitea`, `searxng`, `mercure`, `mongodb`, `couchdb`
+- `anythingllm` -> `ollama`, `qdrant`
+- `ragflow` -> `mysql`, `redis`, `minio`, `infinity`, `ollama`
+- `open-notebooklm` -> `surrealdb`, `ollama`, `qdrant`
+- `obsidian-remote` -> `couchdb` sync endpoint via `COUCHDB_URL`
+
+### Verification Commands
+
+1. Validate compose rendering and env interpolation:
+    ```bash
+    docker compose config >/tmp/stack.rendered.yml
+    ```
+2. Confirm service health status:
+    ```bash
+    docker compose ps
+    ```
+3. Confirm model bootstrap in Ollama:
+    ```bash
+    docker compose exec ollama ollama list
+    ```
+4. Quick API checks:
+    ```bash
+    docker compose exec n8n sh -lc 'wget -qO- http://qdrant:6333/healthz && echo && wget -qO- http://ollama:11434/api/tags'
+    ```
+5. Confirm OpenHands can resolve Gitea endpoint:
+    ```bash
+    docker compose exec openhands sh -lc 'wget -qO- http://gitea:3000 >/dev/null && echo ok'
+    ```
 
 ---
 

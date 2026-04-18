@@ -48,7 +48,7 @@ services:
               capabilities: [gpu]
 
   open-notebooklm:
-    image: lfnovo/open-notebook:v1-latest
+    image: pcoille/open-notebook:latest
     container_name: open-notebooklm
     restart: always
     ports:
@@ -285,7 +285,7 @@ services:
       - minio_data:/data
 
   infinity:
-    image: infiniflow/infinity:latest
+    image: infiniflow/infinity:nightly
     container_name: infinity
     restart: always
     volumes:
