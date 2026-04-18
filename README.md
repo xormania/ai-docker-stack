@@ -11,17 +11,21 @@ This repository contains a high-intelligence, multi-container Docker environment
      cp .env.example .env
      ```
      Review `.env` and change all default credentials before exposing ports beyond localhost.
-4.  **Deployment**:
+4.  **Docker Login**
+    ```bash
+    docker login
+    ```
+5.  **Deployment**:
     ```bash
     docker compose up -d
     ```
-5.  **Access**: Services are mapped to specific ports (e.g., Open WebUI at `http://localhost:3000`).
+6.  **Access**: Services are mapped to specific ports (e.g., Open WebUI at `http://localhost:3000`).
 
 ### Startup Behavior
 
 The stack now uses health-gated startup for core dependencies:
 - Infrastructure services (`postgres`, `redis`, `qdrant`, `mysql`, `minio`, `couchdb`, `mongodb`) must be healthy before dependent services start.
-- `ollama-init` waits for `ollama`, pulls `OLLAMA_BOOTSTRAP_MODEL` (default `gemma4:current`) once, and exits successfully.
+- `ollama-init` waits for `ollama`, pulls `OLLAMA_BOOTSTRAP_MODEL` (default `qwen3.5:current`) once, and exits successfully.
 - LLM clients (`open-webui`, `anythingllm`, `flowise`, `openhands`, `jupyter`) wait for `ollama-init` completion.
 
 This prevents race conditions where agent and RAG services start before their backing stores and model endpoint are ready.
@@ -76,7 +80,7 @@ This prevents race conditions where agent and RAG services start before their ba
 
 ### Development & Analytical Tools
 * **Jupyter Notebook**: A PyTorch-enabled environment for model fine-tuning, data science, and interactive Python development. [GitHub](https://github.com/jupyter/docker-stacks)
-* **Open-NotebookLM**: A local alternative to Google's NotebookLM, allowing for source-grounded analysis and document-based insights. [GitHub](https://github.com/lfnovo/open-notebook)
+* **Open-NotebookLM**: A local alternative to Google's NotebookLM, allowing for source-grounded analysis and document-based insights. [GitHub](https://github.com/coille/open-notebook)
 * **Gitea**: A lightweight, self-hosted Git service to manage your local code repositories and AI-generated scripts. [GitHub](https://github.com/go-gitea/gitea)
 
 ### RAG & Search Infrastructure
