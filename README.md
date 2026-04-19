@@ -49,7 +49,7 @@ User-facing tools and orchestration systems:
 2. **Clone & Prepare**
 
    ```bash
-   git clone <repo>
+   git clone https://github.com/xormania/ai-docker-stack
    cd ai-docker-stack
    mkdir obsidian_vault
    ```
