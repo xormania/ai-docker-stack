@@ -1,0 +1,46 @@
+name: Verify Compose Integrity
+
+on:
+  push:
+    paths:
+      - 'compose*.yaml'
+      - 'env/**'
+      - '.env.example'
+      - '.github/workflows/verify-compose.yml'
+  pull_request:
+    paths:
+      - 'compose*.yaml'
+      - 'env/**'
+      - '.env.example'
+      - '.github/workflows/verify-compose.yml'
+
+jobs:
+  verify:
+    name: Validate Docker Compose Files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: cp .env.example .env
+
+      - name: Validate base compose
+        run: docker compose -f compose.yaml config --quiet
+
+      - name: Validate apps compose
+        run: docker compose -f compose.yaml -f compose.apps.yaml config --quiet
+
+      - name: Validate dev compose
+        run: docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+
+      - name: Validate openclaw compose
+        run: docker compose -f compose.yaml -f compose.openclaw.yaml config --quiet
+
+      - name: Validate security compose
+        run: docker compose -f compose.yaml -f compose.openclaw.yaml -f compose.security.yaml config --quiet
+
+      - name: Validate agent-access compose
+        run: docker compose -f compose.yaml -f compose.apps.yaml -f compose.openclaw.yaml -f compose.agent-access.yaml config --quiet

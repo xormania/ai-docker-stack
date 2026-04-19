@@ -130,3 +130,12 @@ services:
     restart: always
     ports:
       - "${UNSTRUCTURED_API_PORT}:8000"
+
+  openhands:
+    image: ${OPENHANDS_IMAGE}
+    container_name: openhands
+    restart: always
+    environment:
+      OPENHANDS_ENABLE_DOCKER_SOCKET: ${OPENHANDS_ENABLE_DOCKER_SOCKET}
+    ports:
+      - "${OPENHANDS_PORT}:3000"

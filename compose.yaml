@@ -59,6 +59,27 @@ services:
       - ./env/base.env
     command: start --user ${SURREALDB_USER} --pass ${SURREALDB_PASS} rocksdb:/mydata/mydatabase.db
 
+  qdrant:
+    image: ${QDRANT_IMAGE}
+    container_name: qdrant
+    restart: always
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  mongodb:
+    image: ${MONGODB_IMAGE}
+    container_name: mongodb
+    restart: always
+    volumes:
+      - mongodb-data:/data/db
+
+  infinity:
+    image: ${INFINITY_IMAGE}
+    container_name: infinity
+    restart: always
+    volumes:
+      - infinity-data:/var/infinity
+
   mercure:
     image: ${MERCURE_IMAGE}
     container_name: mercure
@@ -67,3 +88,7 @@ services:
       - ./env/base.env
     ports:
       - "${MERCURE_PORT}:80"
+volumes:
+  qdrant-data:
+  mongodb-data:
+  infinity-data:
