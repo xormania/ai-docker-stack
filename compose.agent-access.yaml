@@ -1,0 +1,53 @@
+name: ai-docker-stack
+
+networks:
+  agent_access:
+    name: ${AGENT_ACCESS_NETWORK:-agent_access}
+    internal: true
+
+services:
+  # Agent runtimes get internal app/service access only through this network.
+  # Keep default network attachment out of the security overlay if you want
+  # stricter segmentation.
+  openclaw:
+    networks:
+      - agent_access
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      QDRANT_URL: http://qdrant:6333
+      GITEA_BASE_URL: http://gitea:3000
+      SEARXNG_BASE_URL: http://searxng:8080
+      # Optional, only if you explicitly want agent-driven workflow automation:
+      # N8N_BASE_URL: http://n8n:5678
+
+  openhands:
+    networks:
+      - agent_access
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      QDRANT_URL: http://qdrant:6333
+      GITEA_BASE_URL: http://gitea:3000
+      SEARXNG_BASE_URL: http://searxng:8080
+
+  # Approved agent-access services only.
+  # Attach ONLY what the agent truly needs.
+  ollama:
+    networks:
+      - agent_access
+
+  qdrant:
+    networks:
+      - agent_access
+
+  gitea:
+    networks:
+      - agent_access
+
+  searxng:
+    networks:
+      - agent_access
+
+  # Uncomment only if intentionally allowed.
+  # n8n:
+  #   networks:
+  #     - agent_access
