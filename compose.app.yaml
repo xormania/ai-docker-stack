@@ -1,0 +1,132 @@
+services:
+  open-webui:
+    image: ${OPEN_WEBUI_IMAGE}
+    container_name: open-webui
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+    ports:
+      - "${OPEN_WEBUI_PORT}:8080"
+
+  dify-api:
+    image: ${DIFY_API_IMAGE}
+    container_name: dify-api
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_DATABASE: ${POSTGRES_DB_DIFY}
+      REDIS_HOST: ${REDIS_HOST}
+      VECTOR_STORE: qdrant
+      QDRANT_HOST: ${QDRANT_HOST}
+
+  dify-worker:
+    image: ${DIFY_API_IMAGE}
+    container_name: dify-worker
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_DATABASE: ${POSTGRES_DB_DIFY}
+      REDIS_HOST: ${REDIS_HOST}
+      VECTOR_STORE: qdrant
+      QDRANT_HOST: ${QDRANT_HOST}
+
+  flowise:
+    image: ${FLOWISE_IMAGE}
+    container_name: flowise
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      DATABASE_TYPE: postgres
+      DATABASE_PORT: ${POSTGRES_PORT}
+      DATABASE_HOST: ${POSTGRES_HOST}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_NAME: ${POSTGRES_DB_FLOWISE}
+    ports:
+      - "${FLOWISE_PORT}:3000"
+
+  n8n:
+    image: ${N8N_IMAGE}
+    container_name: n8n
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: ${POSTGRES_HOST}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${N8N_PORT}:5678"
+
+  gitea:
+    image: ${GITEA_IMAGE}
+    container_name: gitea
+    restart: always
+    ports:
+      - "${GITEA_HTTP_PORT}:3000"
+      - "${GITEA_SSH_PORT}:22"
+
+  anythingllm:
+    image: ${ANYTHINGLLM_IMAGE}
+    container_name: anythingllm
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      STORAGE_DIR: /app/server/storage
+      OLLAMA_BASE_PATH: ${OLLAMA_BASE_URL}
+      VECTOR_DB: qdrant
+      QDRANT_ENDPOINT: ${QDRANT_ENDPOINT}
+    ports:
+      - "${ANYTHINGLLM_PORT}:3001"
+
+  ragflow:
+    image: ${RAGFLOW_IMAGE}
+    container_name: ragflow
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      OLLAMA_HOST: ${OLLAMA_BASE_URL}
+    ports:
+      - "${RAGFLOW_PORT}:80"
+
+  open-notebooklm:
+    image: ${OPEN_NOTEBOOKLM_IMAGE}
+    container_name: open-notebooklm
+    restart: always
+    env_file:
+      - ./env/apps.env
+    environment:
+      SURREALDB_URL: ${SURREALDB_URL}
+    ports:
+      - "${OPEN_NOTEBOOKLM_PORT}:8502"
+      - "${OPEN_NOTEBOOKLM_API_PORT}:5055"
+
+  searxng:
+    image: ${SEARXNG_IMAGE}
+    container_name: searxng
+    restart: always
+    ports:
+      - "${SEARXNG_PORT}:8080"
+
+  unstructured-api:
+    image: ${UNSTRUCTURED_API_IMAGE}
+    container_name: unstructured-api
+    restart: always
+    ports:
+      - "${UNSTRUCTURED_API_PORT}:8000"

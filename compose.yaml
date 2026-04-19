@@ -1,0 +1,69 @@
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE}
+    container_name: ollama
+    restart: always
+    env_file:
+      - ./env/base.env
+
+  ollama-init:
+    image: ${OLLAMA_IMAGE}
+    container_name: ollama-init
+    restart: "no"
+    env_file:
+      - ./env/base.env
+    entrypoint: >
+      sh -lc 'ollama pull "$${OLLAMA_BOOTSTRAP_MODEL}"'
+
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    container_name: postgres
+    restart: always
+    env_file:
+      - ./env/base.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_N8N}
+
+  redis:
+    image: ${REDIS_IMAGE}
+    container_name: redis
+    restart: always
+
+  mysql:
+    image: ${MYSQL_IMAGE}
+    container_name: mysql
+    restart: always
+    env_file:
+      - ./env/base.env
+
+  minio:
+    image: ${MINIO_IMAGE}
+    container_name: minio
+    restart: always
+    env_file:
+      - ./env/base.env
+    command: server /data --console-address ":9001"
+
+  couchdb:
+    image: ${COUCHDB_IMAGE}
+    container_name: couchdb
+    restart: always
+    env_file:
+      - ./env/base.env
+
+  surrealdb:
+    image: ${SURREALDB_IMAGE}
+    container_name: surrealdb
+    restart: always
+    env_file:
+      - ./env/base.env
+    command: start --user ${SURREALDB_USER} --pass ${SURREALDB_PASS} rocksdb:/mydata/mydatabase.db
+
+  mercure:
+    image: ${MERCURE_IMAGE}
+    container_name: mercure
+    restart: always
+    env_file:
+      - ./env/base.env
+    ports:
+      - "${MERCURE_PORT}:80"
