@@ -1,18 +1,19 @@
 name: ai-docker-stack
 
 networks:
+  # Existing/default app network is used for internal service access.
+  # Agent also joins an internal-only network that has no external route.
   agent_internal:
     name: ${AGENT_INTERNAL_NETWORK:-agent_internal}
     internal: true
 
 services:
-  # Egress control point for agent containers.
-  # Replace with a custom-built image/config later if you want tighter control.
   squid:
     image: ${SQUID_IMAGE:-sameersbn/squid:3.5.27-2}
     container_name: ${SQUID_CONTAINER_NAME:-squid}
     restart: unless-stopped
     networks:
+      - default
       - agent_internal
     volumes:
       - ./security/squid.conf:/etc/squid/squid.conf:ro
@@ -36,14 +37,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional hardened override for OpenClaw.
-  # This assumes OpenClaw supports standard proxy env vars.
+  # Hardened override for OpenClaw.
+  # IMPORTANT: only attach to agent_internal so it cannot egress directly.
+  # It should reach stack services through hostnames resolved via extra_hosts below.
   openclaw:
     depends_on:
       squid:
         condition: service_healthy
     networks:
-      - default
       - agent_internal
     environment:
       OPENCLAW_EGRESS_MODE: ${OPENCLAW_EGRESS_MODE:-allowlist}
@@ -51,7 +52,23 @@ services:
       HTTP_PROXY: http://squid:3128
       HTTPS_PROXY: http://squid:3128
       ALL_PROXY: http://squid:3128
-      NO_PROXY: localhost,127.0.0.1,ollama,postgres,redis,mysql,minio,couchdb,surrealdb,mercure,qdrant,gitea,n8n,searxng,unstructured-api
+      NO_PROXY: localhost,127.0.0.1,squid
+      # Point service URLs at the host-published ports instead of docker DNS names
+      OLLAMA_BASE_URL: http://host.docker.internal:${OLLAMA_PORT:-11434}
+      QDRANT_URL: http://host.docker.internal:${QDRANT_HTTP_PORT:-6333}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@host.docker.internal:${REDIS_PORT:-6379}
+      POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:${POSTGRES_PORT:-5432}/${POSTGRES_DB}
+      MYSQL_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@host.docker.internal:${MYSQL_PORT:-3306}/${MYSQL_DATABASE}
+      MINIO_ENDPOINT: http://host.docker.internal:${MINIO_API_PORT:-9000}
+      GITEA_BASE_URL: http://host.docker.internal:${GITEA_HTTP_PORT:-3001}
+      N8N_BASE_URL: http://host.docker.internal:${N8N_PORT:-5678}
+      MERCURE_URL: http://host.docker.internal:${MERCURE_PORT:-8080}
+      SURREALDB_URL: ws://host.docker.internal:${SURREALDB_PORT:-8000}/rpc
+      COUCHDB_URL: http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@host.docker.internal:${COUCHDB_PORT:-5984}
+      SEARXNG_BASE_URL: http://host.docker.internal:${SEARXNG_PORT:-8080}
+      UNSTRUCTURED_API_URL: http://host.docker.internal:${UNSTRUCTURED_API_PORT:-8001}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -63,24 +80,22 @@ services:
     pids_limit: 512
     mem_limit: ${OPENCLAW_MEM_LIMIT:-2g}
     cpus: ${OPENCLAW_CPUS:-2.0}
-    # Uncomment if the image supports running as non-root cleanly.
-    # user: "${OPENCLAW_UID:-1000}:${OPENCLAW_GID:-1000}"
 
-  # Optional hardened override for OpenHands.
-  # Keep it opt-in and do NOT mount docker.sock.
+  # Hardened override for OpenHands with same pattern.
   openhands:
     depends_on:
       squid:
         condition: service_healthy
     networks:
-      - default
       - agent_internal
     environment:
+      OPENHANDS_ENABLE_DOCKER_SOCKET: "false"
       HTTP_PROXY: http://squid:3128
       HTTPS_PROXY: http://squid:3128
       ALL_PROXY: http://squid:3128
-      NO_PROXY: localhost,127.0.0.1,ollama,postgres,redis,mysql,minio,couchdb,surrealdb,mercure,qdrant,gitea,n8n,searxng,unstructured-api
-      OPENHANDS_ENABLE_DOCKER_SOCKET: "false"
+      NO_PROXY: localhost,127.0.0.1,squid
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -92,8 +107,6 @@ services:
     pids_limit: 512
     mem_limit: ${OPENHANDS_MEM_LIMIT:-2g}
     cpus: ${OPENHANDS_CPUS:-2.0}
-    # Uncomment if compatible with the image:
-    # user: "${OPENHANDS_UID:-1000}:${OPENHANDS_GID:-1000}"
 
 volumes:
   squid-cache:
