@@ -149,7 +149,55 @@ All outbound traffic from agent execution should pass through a proxy enforcing 
 
 ---
 
-## 🧪 Verification
+## 🔒 Image Verification
+
+All images are referenced by mutable tags (e.g. `latest`).  To guard against
+tag-switching attacks (imposters), pin and verify image digests before starting
+the stack.
+
+### First-time setup — pin digests
+
+After configuring `.env`, pull every image and record its immutable SHA-256
+content digest:
+
+```bash
+scripts/pin-digests.sh
+```
+
+This writes `digests.lock`.  Commit it to version control so the expected
+digests are part of your auditable history.
+
+### Verify before every start
+
+```bash
+scripts/verify-images.sh
+```
+
+The script inspects each locally-cached image and compares its digest against
+`digests.lock`.  It exits non-zero and prints a clear error if any image does
+not match, so you can catch tampering before containers are created:
+
+```
+  ollama/ollama:latest                                         OK
+  ghcr.io/open-webui/open-webui:main                          MISMATCH — possible imposter!
+           expected: sha256:abc123...
+           actual:   sha256:def456...
+```
+
+### Refresh after intentional upgrades
+
+When you deliberately update an image tag in `.env`, re-run `pin-digests.sh`
+and commit the updated `digests.lock`:
+
+```bash
+scripts/pin-digests.sh
+git add digests.lock
+git commit -m "chore: refresh image digests"
+```
+
+---
+
+## 🧪 Stack Health Checks
 
 ```bash
 docker compose config >/tmp/stack.rendered.yml
