@@ -1,119 +1,272 @@
 # AI Docker Compose Kit
 
-This repository contains a high-intelligence, multi-container Docker environment designed for local AI development, autonomous agent management, and high-fidelity Retrieval-Augmented Generation (RAG). It integrates cutting-edge inference engines, vector databases, and automation tools into a single, cohesive network.
+This repository provides a **modular, multi-container AI environment** for local development, agent orchestration, and high-performance Retrieval-Augmented Generation (RAG).
 
-## Installation
-
-1.  **System Requirements**: Ensure you have Docker and the NVIDIA Container Toolkit installed (for GPU-accelerated inference).
-2.  **Clone & Prepare**: Clone this repository and create an `obsidian_vault` directory in the root to serve as the shared knowledge base.
-3.  **Create Environment File**:
-     ```bash
-     cp .env.example .env
-     ```
-     Review `.env` and change all default credentials before exposing ports beyond localhost.
-4.  **Docker Login**
-    ```bash
-    docker login
-    ```
-5.  **Deployment**:
-    ```bash
-    docker compose up -d
-    ```
-6.  **Access**: Services are mapped to specific ports (e.g., Open WebUI at `http://localhost:3000`).
-
-### Startup Behavior
-
-The stack now uses health-gated startup for core dependencies:
-- Infrastructure services (`postgres`, `redis`, `qdrant`, `mysql`, `minio`, `couchdb`, `mongodb`) must be healthy before dependent services start.
-- `ollama-init` waits for `ollama`, pulls `OLLAMA_BOOTSTRAP_MODEL` (default `qwen3.5:current`) once, and exits successfully.
-- LLM clients (`open-webui`, `anythingllm`, `flowise`, `openhands`, `jupyter`) wait for `ollama-init` completion.
-
-This prevents race conditions where agent and RAG services start before their backing stores and model endpoint are ready.
-
-### Integration Matrix (Internal URLs)
-
-- `open-webui` -> `ollama` via `OLLAMA_BASE_URL`
-- `dify-api` / `dify-worker` -> `postgres`, `redis`, `qdrant`, `ollama`, `mongodb`, `couchdb`
-- `flowise` -> `postgres`, `ollama`, `qdrant`
-- `openhands` -> `ollama`, `gitea`, `mongodb` with feature-branch auto-commit controls
-- `n8n` -> `postgres`, `redis`, `ollama`, `gitea`, `searxng`, `mercure`, `mongodb`, `couchdb`
-- `anythingllm` -> `ollama`, `qdrant`
-- `ragflow` -> `mysql`, `redis`, `minio`, `infinity`, `ollama`
-- `open-notebooklm` -> `surrealdb`, `ollama`, `qdrant`
-- `obsidian-remote` -> `couchdb` sync endpoint via `COUCHDB_URL`
-
-### Verification Commands
-
-1. Validate compose rendering and env interpolation:
-    ```bash
-    docker compose config >/tmp/stack.rendered.yml
-    ```
-2. Confirm service health status:
-    ```bash
-    docker compose ps
-    ```
-3. Confirm model bootstrap in Ollama:
-    ```bash
-    docker compose exec ollama ollama list
-    ```
-4. Quick API checks:
-    ```bash
-    docker compose exec n8n sh -lc 'wget -qO- http://qdrant:6333/healthz && echo && wget -qO- http://ollama:11434/api/tags'
-    ```
-5. Confirm OpenHands can resolve Gitea endpoint:
-    ```bash
-    docker compose exec openhands sh -lc 'wget -qO- http://gitea:3000 >/dev/null && echo ok'
-    ```
+It is designed as a **local AI infrastructure platform**—a “local brain”—where all services operate within a unified Docker network, enabling low-latency communication, shared context, and controlled execution.
 
 ---
 
-## Component Breakdown
+## 🧠 Architecture Overview
 
-### Core Engine & Interfaces
-* **Ollama**: The primary inference engine for running high-performance LLMs locally. It handles model loading and API serving. [GitHub](https://github.com/ollama/ollama)
-* **Open WebUI**: A feature-rich, self-hosted web interface for interacting with Ollama. It serves as the main dashboard for daily chat and prompt engineering. [GitHub](https://github.com/open-webui/open-webui)
+The system is structured into four layers:
 
-### Agentic Management Systems
-* **Dify**: A comprehensive LLM application development platform. It manages the full lifecycle of AI apps, from prompt orchestration to operational observability. [GitHub](https://github.com/langgenius/dify)
-* **Flowise**: A low-code, drag-and-drop tool for building complex, customized LLM flows and agentic chains using LangChain and LlamaIndex. [GitHub](https://github.com/FlowiseAI/Flowise)
-* **OpenHands**: An autonomous AI software engineer capable of writing code, running commands, and managing complex development tasks within a sandbox. [GitHub](https://github.com/All-Hands-AI/OpenHands)
+### 1. Core Infrastructure
 
-### Development & Analytical Tools
-* **Jupyter Notebook**: A PyTorch-enabled environment for model fine-tuning, data science, and interactive Python development. [GitHub](https://github.com/jupyter/docker-stacks)
-* **Open-NotebookLM**: A local alternative to Google's NotebookLM, allowing for source-grounded analysis and document-based insights. [GitHub](https://github.com/coille/open-notebook)
-* **Gitea**: A lightweight, self-hosted Git service to manage your local code repositories and AI-generated scripts. [GitHub](https://github.com/go-gitea/gitea)
+Persistent data stores and inference runtime:
 
-### RAG & Search Infrastructure
-* **AnythingLLM**: A workspace-centric RAG application that simplifies document ingestion and vector storage management. [GitHub](https://github.com/Mintplex-Labs/anything-llm)
-* **RAGFlow**: An advanced RAG system specializing in deep document understanding, particularly effective at parsing complex tables and layouts. [GitHub](https://github.com/infiniflow/ragflow)
-* **Unstructured API**: A specialized service for pre-processing and cleaning "messy" data formats (PDFs, PPTXs, HTML) before they are embedded. [GitHub](https://github.com/Unstructured-IO/unstructured)
-* **SearXNG**: A privacy-respecting metasearch engine that provides your LLMs and agents with real-time web context without external API keys. [GitHub](https://github.com/searxng/searxng)
+* PostgreSQL, Redis, MongoDB, MySQL
+* Qdrant (vector DB), SurrealDB, Infinity
+* MinIO (object storage), CouchDB
+* Ollama (LLM runtime)
 
-### Automation & Knowledge Management
-* **n8n**: A powerful workflow automation tool that connects various AI services and external APIs into event-driven pipelines. [GitHub](https://github.com/n8n-io/n8n)
-* **Obsidian Remote**: A browser-based interface for your Obsidian vault, enabling real-time PKM management within the Docker network. [GitHub](https://github.com/sytone/obsidian-remote)
-* **CouchDB**: The database backend for private, self-hosted Obsidian synchronization across your devices. [GitHub](https://github.com/apache/couchdb)
-* **Mercure**: A real-time hub for pushing server-sent events (SSE) to modern web interfaces, ensuring instantaneous updates across the stack. [GitHub](https://github.com/dunglas/mercure)
+### 2. Application Layer
 
-### Data Persistence & Storage
-* **PostgreSQL**: The primary relational database for n8n, Gitea, Dify, and Flowise. [GitHub](https://github.com/postgres/postgres)
-* **MongoDB**: A NoSQL document store used for high-velocity logging and unstructured agentic state storage. [GitHub](https://github.com/mongodb/mongo)
-* **Qdrant**: A high-performance vector database that stores and retrieves embeddings for RAG and agentic memory. [GitHub](https://github.com/qdrant/qdrant)
-* **SurrealDB**: A multi-model database that powers the analytical capabilities of Open-NotebookLM. [GitHub](https://github.com/surrealdb/surrealdb)
-* **Redis**: A key-value store used for high-speed caching and message brokering across the automation layer. [GitHub](https://github.com/redis/redis)
-* **MySQL**: Relational storage specifically allocated for managing RAGFlow metadata. [GitHub](https://github.com/mysql/mysql-server)
-* **MinIO**: An S3-compatible object storage server used for managing large datasets and binary assets. [GitHub](https://github.com/minio/minio)
-* **Infinity**: An AI-native database optimized for ultra-fast hybrid search, including dense/sparse vectors and full-text indexing. [GitHub](https://github.com/infiniflow/infinity)
+User-facing tools and orchestration systems:
+
+* Open WebUI, Dify, Flowise
+* AnythingLLM, RAGFlow, Open-NotebookLM
+* n8n (automation), Gitea (code), SearXNG (search)
+* Obsidian Remote (knowledge interface)
+
+### 3. Agent Layer (Optional)
+
+* **OpenClaw**: system-level AI agent with access to internal services
+
+### 4. Execution Layer
+
+* **Docker Sandbox** (recommended): isolated execution environment for agent tools
+* Enforced **egress control via proxy allowlists**
 
 ---
 
-## Value Proposition: The "Local Brain" Ecosystem
+## ⚙️ Installation
 
-The primary advantage of this "all-under-one-roof" architecture is **seamless context continuity**. In traditional setups, data is siloed between a note-taking app, a coding IDE, and an automation platform. In this stack, every major service—from your coding agent (OpenHands) to your automation workflows (n8n) and analytical tools (Jupyter)—has direct, simultaneous access to your `obsidian_vault` and local `Gitea` repositories.
+1. **Requirements**
 
-By containerizing these services within a single Docker network:
-1.  **Zero-Latency RAG**: Your vector database (Qdrant) and inference engine (Ollama) communicate over high-speed internal bridge networks, drastically reducing the time between data ingestion and retrieval.
-2.  **Privacy-First Intelligence**: No data leaves your local network. Your internal searches (SearXNG), document parsing (Unstructured), and agentic logic are entirely self-contained.
-3.  **Cross-Service Orchestration**: An n8n workflow can trigger an OpenHands coding task based on a new note in Obsidian, search the web via SearXNG for documentation, and commit the fix to Gitea—all without a single external API call.
+   * Docker
+   * NVIDIA Container Toolkit (optional, for GPU acceleration)
 
-This is more than a collection of tools; it is a locally-hosted Operating System for the AI age.
+2. **Clone & Prepare**
+
+   ```bash
+   git clone <repo>
+   cd ai-docker-stack
+   mkdir obsidian_vault
+   ```
+
+3. **Configure Environment**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and change all credentials before exposing ports.
+
+4. **Start Core + Apps**
+
+   ```bash
+   docker compose -f compose.yaml -f compose.apps.yaml up -d
+   ```
+
+5. **Optional: Add OpenClaw**
+
+   ```bash
+   docker compose -f compose.yaml -f compose.apps.yaml -f compose.openclaw.yaml up -d
+   ```
+
+6. **Optional: Dev Tools**
+
+   ```bash
+   docker compose -f compose.yaml -f compose.apps.yaml -f compose.dev.yaml up -d
+   ```
+
+---
+
+## 🚀 Startup Behavior
+
+* Core services must pass health checks before dependents start
+* `ollama-init`:
+
+  * waits for Ollama
+  * pulls `${OLLAMA_BOOTSTRAP_MODEL}`
+  * exits once complete
+* All LLM-dependent services wait for model readiness
+
+This prevents race conditions across the stack.
+
+---
+
+## 🔗 Internal Integration Matrix
+
+All services communicate via internal Docker DNS:
+
+* `open-webui` → `ollama`
+* `dify` → `postgres`, `redis`, `qdrant`, `mongodb`, `couchdb`
+* `flowise` → `postgres`, `qdrant`, `ollama`
+* `n8n` → `postgres`, `redis`, `ollama`, `gitea`, `searxng`, `mercure`
+* `anythingllm` → `ollama`, `qdrant`
+* `ragflow` → `mysql`, `redis`, `minio`, `infinity`, `ollama`
+* `open-notebooklm` → `surrealdb`, `qdrant`, `ollama`
+* `obsidian-remote` → `couchdb`
+
+---
+
+## 🔐 Security Model
+
+### Internal Access
+
+* Services communicate freely within internal Docker networks
+
+### External Egress
+
+* **Deny-by-default**
+* HTTPS allowed only via allowlist (recommended)
+
+### Agent Execution
+
+* OpenClaw executes tools through **Docker Sandbox**
+* No direct host access
+* No Docker socket exposure
+
+---
+
+## 🌐 Egress Policy (Recommended)
+
+Example allowlist:
+
+```text
+github.com
+api.github.com
+raw.githubusercontent.com
+pypi.org
+files.pythonhosted.org
+registry.npmjs.org
+deb.debian.org
+security.debian.org
+```
+
+All outbound traffic from agent execution should pass through a proxy enforcing this policy.
+
+---
+
+## 🧪 Verification
+
+```bash
+docker compose config >/tmp/stack.rendered.yml
+docker compose ps
+docker compose exec ollama ollama list
+```
+
+Quick health check:
+
+```bash
+docker compose exec n8n sh -lc \
+'wget -qO- http://qdrant:6333/healthz && echo && wget -qO- http://ollama:11434/api/tags'
+```
+
+---
+
+## 🧰 Component Breakdown
+
+### Core Engine
+
+* **Ollama** — local LLM runtime
+* **Open WebUI** — primary UI
+
+### Agentic Systems
+
+* **Dify** — full-stack LLM app platform
+* **Flowise** — visual LLM pipelines
+* **OpenClaw** — system-level agent (optional)
+
+### Dev & Analysis
+
+* **Jupyter** — experimentation
+* **Open-NotebookLM** — document reasoning
+* **Gitea** — local Git hosting
+
+### RAG & Search
+
+* **AnythingLLM**, **RAGFlow**
+* **Unstructured API** — document parsing
+* **SearXNG** — privacy-first search
+
+### Automation & Knowledge
+
+* **n8n** — workflow orchestration
+* **Obsidian Remote** — knowledge interface
+* **Mercure** — real-time updates
+
+### Storage
+
+* PostgreSQL, MongoDB, Redis
+* Qdrant, SurrealDB, Infinity
+* MySQL, MinIO, CouchDB
+
+---
+
+## 🧠 Value Proposition: Local AI Infrastructure
+
+This stack provides:
+
+### Zero-Latency RAG
+
+Internal networking eliminates external API overhead.
+
+### Privacy-First Operation
+
+All data, inference, and orchestration remain local.
+
+### Unified Context
+
+Every service shares access to:
+
+* `obsidian_vault`
+* local repositories (Gitea)
+* internal vector memory (Qdrant)
+
+### Agent-Orchestrated Workflows
+
+With OpenClaw + n8n:
+
+* trigger workflows from notes
+* perform autonomous reasoning
+* update codebases
+* query local + external data (controlled)
+
+---
+
+## ⚠️ Design Principles
+
+* **No Docker socket exposure**
+* **No privileged containers**
+* **Internal-first networking**
+* **Explicit egress control**
+* **Composable architecture via multiple compose files**
+
+---
+
+## 🧭 Future Direction
+
+* Agent API layer (OpenClaw integration)
+* Dynamic egress policies
+* Model routing and optimization
+* Dataset versioning via MinIO
+
+---
+
+## 🧩 Summary
+
+This repository is not just a collection of tools.
+
+It is a **local AI operating environment**:
+
+* inference
+* memory
+* automation
+* orchestration
+* development
+
+All running within a controlled, extensible Docker system.
+
+---
